@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'agenda_page.dart';
 import 'utils/validators.dart';
+import 'utils/helpers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -178,7 +179,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       TrainingPage(alunoData: widget.alunoData),
       AgendaPage(alunoId: widget.alunoData['id'].toString()),
       const MuralPage(),
-      const FinanceiroPage(),
+      FinanceiroPage(alunoId: widget.alunoData['id'].toString()),
     ];
   }
 
@@ -263,27 +264,6 @@ class TrainingPage extends StatelessWidget {
   final Map<String, dynamic> alunoData;
   const TrainingPage({super.key, required this.alunoData});
 
-  String _getSaudacao() {
-    var hora = DateTime.now().hour;
-    if (hora < 12) return "Bom dia";
-    if (hora < 18) return "Boa tarde";
-    return "Boa noite";
-  }
-
-  String _obterDiaAtual() {
-    int diaDaSemana = DateTime.now().weekday;
-    switch (diaDaSemana) {
-      case 1: return "Segunda-feira";
-      case 2: return "Terça-feira";
-      case 3: return "Quarta-feira";
-      case 4: return "Quinta-feira";
-      case 5: return "Sexta-feira";
-      case 6: return "Sábado";
-      case 7: return "Domingo";
-      default: return "Segunda-feira";
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final nome = alunoData['nome'] ?? 'Aluno';
@@ -302,7 +282,7 @@ class TrainingPage extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_getSaudacao(), style: const TextStyle(color: Colors.white54, fontSize: 13, letterSpacing: 0.5)),
+                    Text(Helpers.getSaudacao(DateTime.now().hour), style: const TextStyle(color: Colors.white54, fontSize: 13, letterSpacing: 0.5)),
                     Text(nome, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                   ],
                 ),
@@ -324,7 +304,7 @@ class TrainingPage extends StatelessWidget {
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: () {
-                  String hoje = _obterDiaAtual();
+                  String hoje = Helpers.obterDiaAtual(DateTime.now().weekday);
                   return supabase
                       .from('exercicios')
                       .select()
@@ -390,7 +370,7 @@ class TrainingPage extends StatelessWidget {
                     child: Image.network(gifUrl, fit: BoxFit.contain),
                   ),
                 );
-              }
+            }
             },
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
@@ -450,12 +430,6 @@ class _RestTimerState extends State<RestTimer> {
     super.dispose();
   }
 
-  String _formatTime(int seconds) {
-    int mins = seconds ~/ 60;
-    int secs = seconds % 60;
-    return "$mins:${secs.toString().padLeft(2, '0')}";
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -473,7 +447,7 @@ class _RestTimerState extends State<RestTimer> {
               const Icon(Icons.timer_outlined, color: Colors.deepPurpleAccent, size: 20),
               const SizedBox(width: 12),
               Text(
-                _secondsRemaining > 0 ? _formatTime(_secondsRemaining) : "Descanso",
+                _secondsRemaining > 0 ? Helpers.formatarTempoDescanso(_secondsRemaining) : "Descanso",
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
               ),
             ],
@@ -547,5 +521,240 @@ class _ExerciseCheckState extends State<ExerciseCheck> {
   }
 }
 
-class MuralPage extends StatelessWidget { const MuralPage({super.key}); @override Widget build(BuildContext context) => const Center(child: Text("Mural")); }
-class FinanceiroPage extends StatelessWidget { const FinanceiroPage({super.key}); @override Widget build(BuildContext context) => const Center(child: Text("Financeiro")); }
+class MuralPage extends StatelessWidget {
+  const MuralPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            const Text(
+              "Mural de Avisos",
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurpleAccent),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              "Fique por dentro das novidades da academia",
+              style: TextStyle(color: Colors.white54, fontSize: 14),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: supabase
+                    .from('mural')
+                    .select()
+                    .order('data_publicacao', ascending: false),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                        child: CircularProgressIndicator(
+                            color: Colors.deepPurpleAccent));
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                        child: Text("Erro ao carregar: ${snapshot.error}",
+                            style: const TextStyle(color: Colors.redAccent)));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                        child: Text("Nenhum aviso publicado no momento.",
+                            style: TextStyle(color: Colors.white54)));
+                  }
+
+                  final avisos = snapshot.data!;
+                  return ListView.builder(
+                    itemCount: avisos.length,
+                    itemBuilder: (context, index) {
+                      final aviso = avisos[index];
+                      
+                      DateTime dataPub = DateTime.parse(aviso['data_publicacao']);
+                      String dataFormatada =
+                          "${dataPub.day.toString().padLeft(2, '0')}/${dataPub.month.toString().padLeft(2, '0')}/${dataPub.year}";
+
+                      return Card(
+                        color: const Color(0xFF0F1122).withOpacity(0.85),
+                        elevation: 5,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          side: BorderSide(
+                              color: Colors.deepPurpleAccent.withOpacity(0.3),
+                              width: 1),
+                        ),
+                        margin: const EdgeInsets.only(bottom: 15),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      aviso['titulo'] ?? 'Sem título',
+                                      style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white),
+                                    ),
+                                  ),
+                                  const Icon(Icons.campaign,
+                                      color: Colors.deepPurpleAccent),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                aviso['mensagem'] ?? '',
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 15),
+                              ),
+                              const SizedBox(height: 15),
+                              Text(
+                                "Publicado em: $dataFormatada",
+                                style: const TextStyle(
+                                    color: Colors.white38, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class FinanceiroPage extends StatelessWidget {
+  final String alunoId;
+  const FinanceiroPage({super.key, required this.alunoId});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            const Text(
+              "Meu Financeiro",
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurpleAccent),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              "Acompanhe o status das suas mensalidades",
+              style: TextStyle(color: Colors.white54, fontSize: 14),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: supabase
+                    .from('financeiro')
+                    .select()
+                    .eq('cliente_id', alunoId)
+                    .order('vencimento', ascending: false),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                        child: CircularProgressIndicator(color: Colors.deepPurpleAccent));
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                        child: Text("Erro ao carregar: ${snapshot.error}",
+                            style: const TextStyle(color: Colors.redAccent)));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                        child: Text("Nenhuma cobrança registrada.",
+                            style: TextStyle(color: Colors.white54)));
+                  }
+
+                  final cobrancas = snapshot.data!;
+                  return ListView.builder(
+                    itemCount: cobrancas.length,
+                    itemBuilder: (context, index) {
+                      final cob = cobrancas[index];
+                      
+                      // Tratamento de Data
+                      DateTime dataVenc = DateTime.parse(cob['vencimento']);
+                      String dataFormatada = "${dataVenc.day.toString().padLeft(2, '0')}/${dataVenc.month.toString().padLeft(2, '0')}/${dataVenc.year}";
+                      
+                      // Status e Cores
+                      bool isPago = cob['status'] == 'Pago';
+                      Color statusColor = isPago ? Colors.greenAccent : Colors.redAccent;
+                      IconData statusIcon = isPago ? Icons.check_circle : Icons.warning_amber_rounded;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 15),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F1122).withOpacity(0.85),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white.withOpacity(0.08)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Mensalidade", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                                const SizedBox(height: 4),
+                                Text("Vence em: $dataFormatada", style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "R\$ ${cob['valor'].toStringAsFixed(2).replaceAll('.', ',')}", 
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: statusColor.withOpacity(0.5)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(statusIcon, color: statusColor, size: 16),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    cob['status'],
+                                    style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            )
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
