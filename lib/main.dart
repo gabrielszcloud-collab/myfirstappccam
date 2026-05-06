@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'agenda_page.dart';
+import 'utils/validators.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,11 +42,14 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
   bool _isLoading = false;
 
   Future<void> _fazerLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isLoading = true);
     final email = _emailController.text.trim();
     final senha = _senhaController.text.trim();
@@ -96,53 +100,58 @@ class _LoginPageState extends State<LoginPage> {
           _buildMeshBackground(),
           Padding(
             padding: const EdgeInsets.all(30.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Icon(Icons.fitness_center, size: 80, color: Colors.deepPurpleAccent),
-                const SizedBox(height: 20),
-                const Text(
-                  "Bem-vindo ao CCAM",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 40),
-                TextField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
-                    labelText: 'E-mail do Aluno',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: Colors.black.withOpacity(0.4),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(Icons.fitness_center, size: 80, color: Colors.deepPurpleAccent),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Bem-vindo ao CCAM",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _senhaController,
-                  decoration: InputDecoration(
-                    labelText: 'Senha (Seu CPF)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: Colors.black.withOpacity(0.4),
+                  const SizedBox(height: 40),
+                  TextFormField(
+                    controller: _emailController,
+                    validator: Validators.validaEmail,
+                    decoration: InputDecoration(
+                      labelText: 'E-mail do Aluno',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: Colors.black.withOpacity(0.4),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
                   ),
-                  obscureText: true,
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 30),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurpleAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 15),
+                  TextFormField(
+                    controller: _senhaController,
+                    validator: Validators.validaSenha,
+                    decoration: InputDecoration(
+                      labelText: 'Senha (Seu CPF)',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: Colors.black.withOpacity(0.4),
+                    ),
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
                   ),
-                  onPressed: _isLoading ? null : _fazerLogin,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Entrar", style: TextStyle(fontSize: 18, color: Colors.white)),
-                ),
-              ],
+                  const SizedBox(height: 30),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurpleAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _isLoading ? null : _fazerLogin,
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text("Entrar", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -465,7 +474,7 @@ class _RestTimerState extends State<RestTimer> {
               const SizedBox(width: 12),
               Text(
                 _secondsRemaining > 0 ? _formatTime(_secondsRemaining) : "Descanso",
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
               ),
             ],
           ),
@@ -500,8 +509,9 @@ class _RestTimerState extends State<RestTimer> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF6C28D9),
+            color: const Color(0xFF1B0B3B),
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white10),
           ),
           child: Text(
             label,
