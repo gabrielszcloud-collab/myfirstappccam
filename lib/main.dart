@@ -335,7 +335,7 @@ class TrainingPage extends StatelessWidget {
                         ex['nome_exercicio'],
                         "${ex['series']} Séries",
                         ex['repeticoes'] ?? "12 reps",
-                        ex['carga'] ?? "0kg",
+                        ex['carga'] ?? "0kG",
                         ex['imagem_url'] ?? ""
                       );
                     },
