@@ -53,31 +53,34 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isLoading = true);
     final email = _emailController.text.trim();
-    final senha = _senhaController.text.trim();
+    final senha = _senhaController.text.trim(); // O CPF digitado
 
     try {
-      final resposta = await supabase
+      // Faz a busca direto na tabela 'clientes', exigindo que e-mail e CPF batam
+      final alunoData = await supabase
           .from('clientes')
           .select()
           .eq('email', email)
           .eq('cpf', senha)
           .maybeSingle();
 
-      if (resposta == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Acesso negado! Verifique seu email e senha (CPF).'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
-      } else {
+      if (alunoData != null) {
+        // Encontrou o aluno, libera o acesso!
         if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => MainNavigationScreen(alunoData: resposta),
+              builder: (context) => MainNavigationScreen(alunoData: alunoData),
+            ),
+          );
+        }
+      } else {
+        // Retornou nulo, então o e-mail ou o CPF estão errados
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('E-mail ou senha (CPF) incorretos.'),
+              backgroundColor: Colors.redAccent,
             ),
           );
         }
@@ -85,7 +88,7 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao conectar: $e')),
+          SnackBar(content: Text('Erro no sistema: $e'), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
@@ -131,13 +134,12 @@ class _LoginPageState extends State<LoginPage> {
                     controller: _senhaController,
                     validator: Validators.validaSenha,
                     decoration: InputDecoration(
-                      labelText: 'Senha (Seu CPF)',
+                      labelText: 'Sua Senha',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       filled: true,
                       fillColor: Colors.black.withOpacity(0.4),
                     ),
                     obscureText: true,
-                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 30),
                   ElevatedButton(
@@ -288,10 +290,15 @@ class TrainingPage extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.logout_rounded, color: Colors.white38, size: 24),
-                  onPressed: () => Navigator.pushReplacement(
-                    context, 
-                    MaterialPageRoute(builder: (context) => const LoginPage())
-                  ),
+                  onPressed: () {
+                    // Apenas redireciona de volta para a tela inicial
+                    if (context.mounted) {
+                      Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginPage())
+                      );
+                    }
+                  },
                 ),
               ],
             ),
