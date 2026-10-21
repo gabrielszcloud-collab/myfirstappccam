@@ -5,8 +5,12 @@ import 'dart:async';
 import 'agenda_page.dart';
 import 'utils/helpers.dart';
 
-// Configurado para localhost pois você está rodando no Navegador
-const String apiUrl = 'http://localhost:8081/api';
+// Endereço da API. Padrão: sua máquina. Para usar a nuvem:
+// flutter run --dart-define=API_URL=https://ccam-2-0.onrender.com/api
+const String apiUrl = String.fromEnvironment(
+  'API_URL',
+  defaultValue: 'http://localhost:8081/api',
+);
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -290,6 +294,32 @@ class _TrainingPageState extends State<TrainingPage> {
     }
   }
 
+  // Miniatura à esquerda do card (toque no card abre o GIF grande)
+  Widget _miniatura(String? url) {
+    const tamanho = 56.0;
+    final vazio = Container(
+      width: tamanho,
+      height: tamanho,
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.fitness_center, color: Colors.white24),
+    );
+    if (url == null || url.isEmpty) return vazio;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.network(
+        url,
+        width: tamanho,
+        height: tamanho,
+        fit: BoxFit.cover,
+        errorBuilder: (c, e, st) => vazio,
+      ),
+    );
+  }
+
   // Abre um popup com o GIF de demonstração do exercício
   void _mostrarGif(CatalogoExercicio ex) {
     final url = ex.imagemUrl;
@@ -398,6 +428,7 @@ class _TrainingPageState extends State<TrainingPage> {
                         child: ListTile(
                           contentPadding: EdgeInsets.zero,
                           onTap: () => _mostrarGif(ex),
+                          leading: _miniatura(ex.imagemUrl),
                           title: Text(ex.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text("${ex.series} séries x ${ex.repeticoes} reps${ex.carga != null && ex.carga!.isNotEmpty ? ' (${ex.carga})' : ''}"),
                           trailing: const ExerciseCheck(),
