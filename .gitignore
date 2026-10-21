@@ -43,3 +43,17 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android (arquivos de cada máquina e segredos)
+android/local.properties
+android/.gradle/
+android/key.properties
+android/app/*.jks
+*.jks
+*.keystore
+
+# Ambiente
+.env
+
+# Windows
+Thumbs.db
