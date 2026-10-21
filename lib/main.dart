@@ -19,6 +19,7 @@ class CatalogoExercicio {
   final String series;
   final String repeticoes;
   final String? carga;
+  final String? imagemUrl;
 
   CatalogoExercicio({
     required this.id,
@@ -26,6 +27,7 @@ class CatalogoExercicio {
     required this.series,
     required this.repeticoes,
     this.carga,
+    this.imagemUrl,
   });
 
   factory CatalogoExercicio.fromJson(Map<String, dynamic> json) {
@@ -35,7 +37,8 @@ class CatalogoExercicio {
       nome: (json['nome'] ?? json['nomeExercicio'] ?? 'Exercício').toString(),
       series: (json['series'] ?? json['numeroSeries'] ?? '0').toString(),
       repeticoes: (json['repeticoes'] ?? json['numRepeticoes'] ?? '0').toString(),
-      carga: (json['carga'] ?? json['peso'] ?? '').toString(),
+      carga: json['carga']?.toString() ?? '',
+      imagemUrl: json['imagemUrl']?.toString(),
     );
   }
 }
@@ -78,35 +81,28 @@ class _LoginPageState extends State<LoginPage> {
     final senhaInput = _senhaController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
 
     try {
-      final response = await http.get(Uri.parse('$apiUrl/clientes')).timeout(const Duration(seconds: 10));
+      // O servidor valida e-mail + CPF; o app só recebe o aluno (sem CPF)
+      final response = await http.post(
+        Uri.parse('$apiUrl/clientes/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': emailInput, 'senha': senhaInput}),
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        List<dynamic> clientes = json.decode(response.body);
-
-        final alunoData = clientes.cast<Map<String, dynamic>>().firstWhere(
-              (c) {
-                final emailBanco = (c['email'] ?? '').toString().trim().toLowerCase();
-                final cpfBanco = (c['cpf'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
-                return emailBanco == emailInput && cpfBanco == senhaInput;
-              },
-              orElse: () => <String, dynamic>{},
-            );
-
-        if (alunoData.isNotEmpty) {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MainNavigationScreen(alunoData: alunoData),
-              ),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('E-mail ou CPF incorretos.'), backgroundColor: Colors.redAccent),
-            );
-          }
+        final alunoData = json.decode(response.body) as Map<String, dynamic>;
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MainNavigationScreen(alunoData: alunoData),
+            ),
+          );
+        }
+      } else if (response.statusCode == 400) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('E-mail ou CPF incorretos.'), backgroundColor: Colors.redAccent),
+          );
         }
       } else {
         throw Exception("Erro no servidor: ${response.statusCode}");
@@ -270,7 +266,7 @@ class _TrainingPageState extends State<TrainingPage> {
   Future<List<CatalogoExercicio>> _buscarExercicios() async {
     final clienteId = widget.alunoData['id'];
     final diaHoje = Helpers.obterDiaAtual(DateTime.now().weekday);
-    final url = '$apiUrl/exercicios?clienteId=$clienteId&diaSemana=$diaHoje';
+    final url = '$apiUrl/exercicios/cliente/$clienteId/dia/${Uri.encodeComponent(diaHoje)}';
     
     print('DEBUG: Buscando exercícios na URL: $url');
     
@@ -292,6 +288,49 @@ class _TrainingPageState extends State<TrainingPage> {
       print('DEBUG: Erro na requisição: $e');
       return [];
     }
+  }
+
+  // Abre um popup com o GIF de demonstração do exercício
+  void _mostrarGif(CatalogoExercicio ex) {
+    final url = ex.imagemUrl;
+    if (url == null || url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Este exercício não tem demonstração.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: const Color(0xFF1D1E33),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(ex.nome, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (c, child, progress) => progress == null
+                      ? child
+                      : const SizedBox(height: 200, child: Center(child: CircularProgressIndicator())),
+                  errorBuilder: (c, e, st) => const SizedBox(
+                      height: 200, child: Center(child: Text('Não foi possível carregar o GIF.'))),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar')),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -358,8 +397,9 @@ class _TrainingPageState extends State<TrainingPage> {
                         ),
                         child: ListTile(
                           contentPadding: EdgeInsets.zero,
+                          onTap: () => _mostrarGif(ex),
                           title: Text(ex.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text("${ex.series} séries x ${ex.repeticoes} reps ${ex.carga != '' ? '(${ex.carga}kg)' : ''}"),
+                          subtitle: Text("${ex.series} séries x ${ex.repeticoes} reps${ex.carga != null && ex.carga!.isNotEmpty ? ' (${ex.carga})' : ''}"),
                           trailing: const ExerciseCheck(),
                         ),
                       );
